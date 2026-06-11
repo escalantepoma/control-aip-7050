@@ -100,26 +100,7 @@ def load_docentes():
         df.to_csv(DOCENTES_FILE, index=False, encoding="utf-8")
         return df
 
-# --- AUXILIARES DE TIEMPO ---
-def generar_opciones_horas():
-    horas_ampm = []
-    for h in range(7, 12):
-        for m in [0, 15, 30, 45]:
-            horas_ampm.append(f"{h:02d}:{m:02d} AM")
-    for m in [0, 15, 30, 45]:
-        horas_ampm.append(f"12:{m:02d} PM")
-    for h in range(1, 9):
-        for m in [0, 15, 30, 45]:
-            horas_ampm.append(f"{h:02d}:{m:02d} PM")
-    return horas_ampm
-
-def convertir_to_24h(hora_str):
-    try:
-        in_time = datetime.strptime(hora_str.strip(), "%I:%M %p")
-        return in_time.strftime("%H:%M")
-    except:
-        return "00:00"
-
+# --- AUXILIAR DE TIEMPO MATEMÁTICO ---
 def calcular_horas_fila(row):
     try:
         fmt = "%H:%M"
@@ -132,7 +113,6 @@ def calcular_horas_fila(row):
 config = load_config()
 df_asistencias = load_data()
 df_docentes = load_docentes()
-lista_horas_ampm = generar_opciones_horas()
 
 df_asistencias['Horas_Calculadas'] = df_asistencias.apply(calcular_horas_fila, axis=1)
 
@@ -146,7 +126,6 @@ with st.sidebar:
     st.title(config.get("inst_name"))
     st.markdown("---")
     
-    # Sistema de Login Dinámico en la barra lateral
     if st.session_state.rol_autenticado == "Público":
         st.markdown("<h3 style='font-size:15px; font-weight:bold; color:#1e293b;'>🔒 Intranet / Registro</h3>", unsafe_allow_html=True)
         input_clave = st.text_input("Ingrese la contraseña de acceso:", type="password", help="Use la clave de Docente o Administrador")
@@ -179,7 +158,6 @@ if st.session_state.rol_autenticado == "Administrador":
         if not df_asistencias.empty:
             df_asistencias['Grado y Sección'] = df_asistencias['Grado'].astype(str) + " - " + df_asistencias['Sección'].astype(str)
             
-            # Filtros de Auditoría para el Administrador
             with st.container(border=True):
                 col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
                 with col_f1:
@@ -339,11 +317,15 @@ elif st.session_state.rol_autenticado == "Docente":
         st.session_state.mensaje_exito = False 
         
     if df_docentes.empty:
-        st.warning("⚠️ El Administrador aún no ha cargado la lista de docentes.")
+        st.warning("⚠️ El Admin aún no ha cargado la lista de docentes.")
     else:
         lista_nombres = df_docentes['Nombre'].tolist()
         k = st.session_state.form_key 
         
+        opciones_grado_primaria = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
+        opciones_grado_secundaria = ["1ro", "2do", "3ro", "4to", "5to"]
+        opciones_seccion = ["A", "B", "C", "D", "E", "F", "G", "H"]
+
         def actualizar_valores_docente():
             doc_sel = st.session_state[f"doc_sel_{k}"]
             if doc_sel != "🔍 Escriba para buscar docente...":
@@ -352,14 +334,14 @@ elif st.session_state.rol_autenticado == "Docente":
                 g_raw = str(datos_doc.get('Grado_Asig', "Ninguno")).strip().lower()
                 s_defecto = str(datos_doc.get('Seccion_Asig', "Ninguna")).strip().upper()
                 
-                op_grado = ["1ro", "2do", "3ro", "4to", "5to", "6to"] if nivel_doc == "primaria" else ["1ro", "2do", "3ro", "4to", "5to"]
+                op_grado = opciones_grado_primaria if nivel_doc == "primaria" else opciones_grado_secundaria
                 grado_detectado = op_grado[0]
                 for opcion in op_grado:
                     if len(g_raw) > 0 and (g_raw[0] in opcion or opcion in g_raw):
                         grado_detectado = opcion
                         break
                 st.session_state[f"gr_f_{nivel_doc}_{k}"] = grado_detectado
-                st.session_state[f"se_f_{k}"] = s_defecto if s_defecto in ["A", "B", "C", "D", "E", "F", "G", "H"] else "A"
+                st.session_state[f"se_f_{k}"] = s_defecto if s_defecto in opciones_seccion else opciones_seccion[0]
                 st.session_state[f"al_w_{k}"] = 0
                 st.session_state[f"ac_w_{k}"] = ""
 
@@ -375,7 +357,7 @@ elif st.session_state.rol_autenticado == "Docente":
             with st.container(border=True):
                 st.markdown("### Formulario de Entrada de Sesión")
                 col1, col2 = st.columns(2)
-                opciones_grado = ["1ro", "2do", "3ro", "4to", "5to", "6to"] if nivel_doc.lower() == "primaria" else ["1ro", "2do", "3ro", "4to", "5to"]
+                opciones_grado = opciones_grado_primaria if nivel_doc.lower() == "primaria" else opciones_grado_secundaria
                 
                 key_g = f"gr_f_{nivel_doc.lower()}_{k}"
                 if key_g not in st.session_state: st.session_state[key_g] = opciones_grado[0]
@@ -387,20 +369,29 @@ elif st.session_state.rol_autenticado == "Docente":
                     grado = st.selectbox("Grado que ingresa", opciones_grado, key=key_g)
                     alumnos = st.number_input("Cantidad de Alumnos", min_value=0, max_value=50, key=f"al_w_{k}")
                 with col2:
-                    seccion = st.selectbox("Sección", ["A", "B", "C", "D", "E", "F", "G", "H"], key=f"se_f_{k}")
+                    seccion = st.selectbox("Sección", opciones_seccion, key=f"se_f_{k}")
                     fecha = st.date_input("Fecha de la Sesión:", value=datetime.today(), key=f"fe_w_{k}")
+                    
+                    # Traductor de Fecha en Español
+                    meses_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+                    dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+                    st.markdown(f"📅 **Día Elegido:** {dias_es[fecha.weekday()]} {fecha.day} de {meses_es[fecha.month - 1]} del {fecha.year}")
 
+                st.markdown("🕒 **Horario Real de la Sesión (Escriba o elija la hora exacta minuto a minuto)**")
                 col3, col4 = st.columns(2)
-                with col3: sel_hora_inicio = st.selectbox("Hora de Inicio", lista_horas_ampm, index=4, key=f"hi_{k}")
-                with col4: sel_hora_fin = st.selectbox("Hora de Fin", lista_horas_ampm, index=10, key=f"hf_{k}")
+                with col3: 
+                    # AGREGADO: step=60 obliga a Streamlit a mostrar e incrementar el menú minuto a minuto
+                    sel_hora_inicio = st.time_input("Hora de Ingreso Exacta:", value=time(8, 0), step=60, key=f"hi_exacta_{k}")
+                with col4: 
+                    sel_hora_fin = st.time_input("Hora de Salida Exacta:", value=time(9, 30), step=60, key=f"hf_exacta_{k}")
                 
                 actividad = st.text_area("Tema o Actividad a desarrollar", placeholder="Ej: Programación en Scratch...", key=f"ac_w_{k}")
                 
                 if st.button("💾 Guardar y Registrar Sesión", type="primary", use_container_width=True):
-                    str_hora_inicio = convertir_to_24h(sel_hora_inicio)
-                    str_hora_fin = convertir_to_24h(sel_hora_fin)
+                    str_hora_inicio = sel_hora_inicio.strftime("%H:%M")
+                    str_hora_fin = sel_hora_fin.strftime("%H:%M")
                     
-                    if str_hora_fin <= str_hora_inicio: st.error("⚠️ La hora de fin debe ser posterior a la de inicio.")
+                    if sel_hora_fin <= sel_hora_inicio: st.error("⚠️ La hora de salida debe ser posterior a la hora de ingreso.")
                     elif alumnos == 0: st.error("⚠️ Especifique el número real de alumnos.")
                     else:
                         nuevo_registro = {
@@ -418,7 +409,6 @@ elif st.session_state.rol_autenticado == "Docente":
 # ENTORNO PÚBLICO: PÁGINA WEB PRINCIPAL (HOME)
 # ==========================================
 else:
-    # Encabezado Institucional Estético
     st.markdown(f"<h1 style='text-align: center; color: #0f172a;'>📊 Dashboard de Innovación Pedagógica (AIP)</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align: center; font-size: 18px; color: #475569;'>Monitoreo en tiempo real del uso del Laboratorio Tecnológico de la {config.get('inst_name')}</p>", unsafe_allow_html=True)
     st.markdown("---")
@@ -426,7 +416,6 @@ else:
     if not df_asistencias.empty:
         df_asistencias['Grado y Sección'] = df_asistencias['Grado'].astype(str) + " - " + df_asistencias['Sección'].astype(str)
         
-        # Filtros Públicos Estéticos
         with st.container(border=True):
             st.markdown("🔍 **Filtros de Búsqueda para la Comunidad Educativa**")
             col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
@@ -445,7 +434,6 @@ else:
                 else:
                     pub_rango_fechas = None
 
-        # Filtrado de Datos en tiempo real
         df_pub_filtrado = df_asistencias.copy()
         df_pub_filtrado['Fecha_Obj'] = pd.to_datetime(df_pub_filtrado['Fecha']).dt.date
         
@@ -455,7 +443,6 @@ else:
             df_pub_filtrado = df_pub_filtrado[(df_pub_filtrado['Fecha_Obj'] >= pub_rango_fechas[0]) & (df_pub_filtrado['Fecha_Obj'] <= pub_rango_fechas[1])]
 
         if not df_pub_filtrado.empty:
-            # 📈 Métricas de Impacto Destacadas
             st.markdown("<br>", unsafe_allow_html=True)
             m_col1, m_col2, m_col3, m_col4 = st.columns(4)
             m_col1.metric("📌 Clases Dictadas", len(df_pub_filtrado))
@@ -465,7 +452,6 @@ else:
             
             st.markdown("---")
             
-            # 📊 Distribución Lado a Lado de los Gráficos de Uso por Aula
             g_col1, g_col2 = st.columns(2)
             with g_col1:
                 st.markdown("<h3 style='font-size:18px; font-weight:bold; color:#1e293b;'>📈 Consumo de Horas Pedagógicas por Aula</h3>", unsafe_allow_html=True)
