@@ -16,7 +16,7 @@ CONFIG_FILE = "config.json"
 
 # CLAVES DE ACCESO REESTRUCTURADAS
 ADMIN_PASSWORD = "Aip7050*"
-DOCENTE_PASSWORD = "Docente2026*"  # Clave general para que tus colegas ingresen a registrar
+DOCENTE_PASSWORD = "Docente2026*"  
 
 # ==========================================
 # VARIABLES DE SESIÓN (MEMORIA)
@@ -26,7 +26,7 @@ if "form_key" not in st.session_state:
 if "mensaje_exito" not in st.session_state:
     st.session_state.mensaje_exito = False
 if "rol_autenticado" not in st.session_state:
-    st.session_state.rol_autenticado = "Público" # Roles: Público, Docente, Administrador
+    st.session_state.rol_autenticado = "Público" 
 
 # ==========================================
 # FUNCIONES: IDENTIDAD (CON AUTOCURACIÓN)
@@ -100,7 +100,6 @@ def load_docentes():
         df.to_csv(DOCENTES_FILE, index=False, encoding="utf-8")
         return df
 
-# --- AUXILIAR DE TIEMPO MATEMÁTICO ---
 def calcular_horas_fila(row):
     try:
         fmt = "%H:%M"
@@ -306,7 +305,7 @@ if st.session_state.rol_autenticado == "Administrador":
         else: st.info("No hay registros que eliminar.")
 
 # ==========================================
-# ENTORNO PRIVADO: VISTA DOCENTE (ULTRA RÁPIDA)
+# ENTORNO PRIVADO: VISTA DOCENTE (CORREGIDA)
 # ==========================================
 elif st.session_state.rol_autenticado == "Docente":
     st.title("💻 Intranet de Docentes - Registro AIP")
@@ -324,7 +323,7 @@ elif st.session_state.rol_autenticado == "Docente":
         
         opciones_grado_primaria = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
         opciones_grado_secundaria = ["1ro", "2do", "3ro", "4to", "5to"]
-        opciones_seccion = ["A", "B", "C", "D", "E", "F", "G", "H"]
+        options_seccion = ["A", "B", "C", "D", "E", "F", "G", "H"]
 
         def actualizar_valores_docente():
             doc_sel = st.session_state[f"doc_sel_{k}"]
@@ -341,7 +340,7 @@ elif st.session_state.rol_autenticado == "Docente":
                         grado_detectado = opcion
                         break
                 st.session_state[f"gr_f_{nivel_doc}_{k}"] = grado_detectado
-                st.session_state[f"se_f_{k}"] = s_defecto if s_defecto in opciones_seccion else opciones_seccion[0]
+                st.session_state[f"se_f_{k}"] = s_defecto if s_defecto in options_seccion else options_seccion[0]
                 st.session_state[f"al_w_{k}"] = 0
                 st.session_state[f"ac_w_{k}"] = ""
 
@@ -369,54 +368,52 @@ elif st.session_state.rol_autenticado == "Docente":
                     grado = st.selectbox("Grado que ingresa", opciones_grado, key=key_g)
                     alumnos = st.number_input("Cantidad de Alumnos", min_value=0, max_value=50, key=f"al_w_{k}")
                 with col2:
-                    seccion = st.selectbox("Sección", opciones_seccion, key=f"se_f_{k}")
+                    seccion = st.selectbox("Sección", options_seccion, key=f"se_f_{k}")
                     fecha = st.date_input("Fecha de la Sesión:", value=datetime.today(), key=f"fe_w_{k}")
                     
-                    # Traductor de Fecha en Español
                     meses_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
                     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
                     st.markdown(f"📅 **Día Elegido:** {dias_es[fecha.weekday()]} {fecha.day} de {meses_es[fecha.month - 1]} del {fecha.year}")
 
-                # --- NUEVA SECCIÓN DE HORARIOS DISGREGADOS ULTRA RÁPIDOS Y CÓMODOS ---
-                st.markdown("🕒 **Horario de la Sesión (Selección ágil en 2 clics)**")
+                # --- REESTRUCTURACIÓN MATEMÁTICA ABSOLUTA EN 24 HORAS REALES ---
+                st.markdown("🕒 **Horario de la Sesión (Selección ágil sin errores de AM/PM)**")
                 
-                # Listas de selección rápida
-                lista_horas = [str(i) for i in range(1, 13)]
+                # Mapeo visual amigable para los profesores
+                dict_horas_24 = {
+                    7: "07 AM", 8: "08 AM", 9: "09 AM", 10: "10 AM", 11: "11 AM",
+                    12: "12 PM (Mediodía)", 13: "01 PM", 14: "02 PM", 15: "03 PM", 
+                    16: "04 PM", 17: "05 PM", 18: "06 PM"
+                }
+                
                 lista_minutos = [f"{i:02d}" for i in range(60)]
-                lista_periodos = ["AM", "PM"]
                 
-                col_i1, col_i2, col_i3, col_f1, col_f2, col_f3 = st.columns(6)
+                col_i1, col_i2, col_f1, col_f2 = st.columns(4)
                 
-                with col_i1: h_in = st.selectbox("Hora Ingreso", lista_horas, index=7, key=f"h_in_{k}") # Defecto: 8
-                with col_i2: m_in = st.selectbox("Minuto Ingreso", lista_minutos, index=0, key=f"m_in_{k}") # Defecto: 00
-                with col_i3: p_in = st.selectbox("Periodo", lista_periodos, index=0, key=f"p_in_{k}") # Defecto: AM
-                
-                with col_f1: h_fi = st.selectbox("Hora Salida", lista_horas, index=8, key=f"h_fi_{k}") # Defecto: 9
-                with col_f2: m_fi = st.selectbox("Minuto Salida", lista_minutos, index=30, key=f"m_fi_{k}") # Defecto: 30
-                with col_f3: p_fi = st.selectbox("Periodo ", lista_periodos, index=0, key=f"p_fi_{k}") # Defecto: AM
+                with col_i1:
+                    h_in_val = st.selectbox("Hora Ingreso", list(dict_horas_24.keys()), format_func=lambda x: dict_horas_24[x], index=1, key=f"h_in_{k}") # Defecto 8 AM
+                with col_i2:
+                    m_in_val = st.selectbox("Minuto Ingreso", lista_minutos, index=0, key=f"m_in_{k}")
+                    
+                with col_f1:
+                    h_fi_val = st.selectbox("Hora Salida", list(dict_horas_24.keys()), format_func=lambda x: dict_horas_24[x], index=2, key=f"h_fi_{k}") # Defecto 9 AM
+                with col_f2:
+                    m_fi_val = st.selectbox("Minuto Salida", lista_minutos, index=30, key=f"m_fi_{k}")
                 
                 actividad = st.text_area("Tema o Actividad a desarrollar", placeholder="Ej: Programación en Scratch...", key=f"ac_w_{k}")
                 
                 if st.button("💾 Guardar y Registrar Sesión", type="primary", use_container_width=True):
-                    # CONVERSIÓN INTERNA DE FORMATO DISGREGADO A FORMATO ESTÁNDAR 24H
-                    try:
-                        str_in_ampm = f"{int(h_in):02d}:{m_in} {p_in}"
-                        str_fi_ampm = f"{int(h_fi):02d}:{m_fi} {p_fi}"
-                        
-                        t_in_parsed = datetime.strptime(str_in_ampm, "%I:%M %p")
-                        t_fi_parsed = datetime.strptime(str_fi_ampm, "%I:%M %p")
-                        
-                        str_hora_inicio = t_in_parsed.strftime("%H:%M")
-                        str_hora_fin = t_fi_parsed.strftime("%H:%M")
-                    except Exception as e:
-                        st.error(f"⚠️ Error al procesar las horas seleccionadas.")
-                        st.stop()
+                    # Comparación matemática limpia en formato 24H directo
+                    val_inicio_minutos = (h_in_val * 60) + int(m_in_val)
+                    val_fin_minutos = (h_fi_val * 60) + int(m_fi_val)
                     
-                    if t_fi_parsed <= t_in_parsed: 
+                    if val_fin_minutos <= val_inicio_minutos: 
                         st.error("⚠️ La hora de salida debe ser posterior a la hora de ingreso.")
                     elif alumnos == 0: 
                         st.error("⚠️ Especifique el número real de alumnos.")
                     else:
+                        str_hora_inicio = f"{h_in_val:02d}:{m_in_val}"
+                        str_hora_fin = f"{h_fi_val:02d}:{m_fi_val}"
+                        
                         nuevo_registro = {
                             "Fecha": str(fecha), "Nivel": nivel_doc, "Área": area_doc, "Docente": docente_seleccionado,
                             "Grado": grado, "Sección": seccion, "Alumnos": int(alumnos), "Hora_Inicio": str_hora_inicio,
